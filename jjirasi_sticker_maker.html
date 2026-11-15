@@ -856,7 +856,9 @@ function textLayer(name, raw, box, o){
   const fam = F ? F.css + ',' + FAMILY : FAMILY;
   const fw = (o.italic ? 'italic ' : '') + (F ? F.weight : o.weight);
   // FILL(전체 글자 채우기): 1이면 예전보다 조금 꽉, 클수록 칸을 더 채워요. 칸 밖으로는 넘치지 않아요.
-  const padX = Math.round(box.w*0.02), padY = Math.round(box.h*0.04);
+  const dense = ['redsign','rockeff','news','yslash'].includes(tpl);
+  if(dense) o = Object.assign({}, o, {maxFont:Math.max(o.maxFont, box.h), lead:Math.min(o.lead, 1.04), fill:true, maxScale:Math.max(o.maxScale || 2.2, 3)});
+  const padX = Math.round(box.w*(dense ? 0.008 : 0.02)), padY = Math.round(box.h*(dense ? 0.012 : 0.04));
   const availW = box.w - 2*padX, availH = box.h - 2*padY;
   const m = document.createElement('canvas').getContext('2d');
   // 실제 글자 모양의 위·아래 높이(글꼴 크기에 대한 비율)를 재서, 글자가 칸 높이를 채우게 해요
@@ -1077,31 +1079,31 @@ function build(){
 
   if(tpl === 'news'){
     const bgc = cv('bg'), ink = cv('ink'), red = cv('red'), navy = cv('navy'), wh = cv('white');
-    const m = Math.round(H*0.035), lw = Math.max(3, Math.round(H*0.006));
-    const rB = {x:m, y:H*0.05, w:W - 2*m, h:H*0.25};
+    const m = Math.round(H*0.02), lw = Math.max(3, Math.round(H*0.006));
+    const rB = {x:m, y:H*0.025, w:W - 2*m, h:H*0.285};
     const bBadge = {x:rB.x, y:rB.y + rB.h*0.12, w:W*0.17, h:rB.h*0.72};
     const tx = bBadge.x + bBadge.w + m*0.5;
     const bTitle = {x:tx, y:rB.y, w:rB.x + rB.w - tx, h:rB.h};
-    const rBar = {x:m, y:H*0.33, w:W - 2*m, h:H*0.17};
+    const rBar = {x:m, y:H*0.315, w:W - 2*m, h:H*0.19};
     const accW = rBar.w*0.24;
     const bAcc = {x:rBar.x + rBar.w - accW - m*0.4, y:rBar.y + rBar.h*0.1, w:accW, h:rBar.h*0.8};
     const bBarTxt = {x:rBar.x + m*0.5, y:rBar.y, w:rBar.w - accW - m*1.4, h:rBar.h};
-    const bBand = {x:m + W*0.05, y:H*0.52, w:W - 2*m - W*0.10, h:H*0.085};
-    const bBox = {x:m, y:H*0.645, w:W*0.20, h:H*0.30};
-    const px = bBox.x + bBox.w + m*0.8;
-    const bPhone = {x:px, y:H*0.645, w:W - m - px, h:H*0.30};
+    const bBand = {x:m, y:H*0.51, w:W - 2*m, h:H*0.105};
+    const bBox = {x:m, y:H*0.62, w:W*0.20, h:H*0.36};
+    const px = bBox.x + bBox.w + m*0.3;
+    const bPhone = {x:px, y:H*0.62, w:W - m - px, h:H*0.36};
     L.push(rectL('배경', {x:0, y:0, w:W, h:H}, bgc, ink, Math.round(H*0.04), 0));
     L.push(ovalL('뱃지 타원', bBadge, red, ink, lw));
     L.push(rectL('검정 줄', rBar, ink, null, 0, 0));
     L.push(rectL('강조 박스', bAcc, red, ink, lw, 0));
     L.push(rectL('남색 띠', bBand, navy, null, 0, 0));
     L.push(rectL('왼쪽 박스', bBox, wh, ink, lw, 0));
-    TT('뱃지', fv('badge'), inset(bBadge, 0.08, 0.12), wh, {maxScale:1.3});
+    TT('뱃지', fv('badge'), inset(bBadge, 0.025, 0.035), wh, {maxScale:1.3});
     TT('제목', fv('title'), bTitle, ink, {maxScale:1.8});
     TT('검정 줄 문구', fv('bar'), bBarTxt, wh, {maxScale:1.6});
-    TT('강조 문구', fv('acc'), inset(bAcc, 0.06, 0.12), bgc);
+    TT('강조 문구', fv('acc'), inset(bAcc, 0.025, 0.035), bgc);
     TT('띠 문구', fv('band'), bBand, wh, {maxFont:bBand.h*0.6, maxScale:1.3, ps:psB});
-    TT('왼쪽 박스 문구', fv('box'), inset(bBox, 0.05, 0.08), ink, {maxFont:bBox.h*0.3, lead:1.15, ps:psB});
+    TT('왼쪽 박스 문구', fv('box'), inset(bBox, 0.025, 0.035), ink, {maxFont:bBox.h*0.3, lead:1.15, ps:psB});
     TT('전화번호', $('phone').value, bPhone, red, {maxFont:bPhone.h*0.7, maxScale:1.8});
   }
   if(tpl === 'blackround'){
@@ -1237,18 +1239,18 @@ function build(){
   if(tpl === 'yslash'){
     const bgc = cv('bg'), navy = cv('navy'), red = cv('red'), wh = cv('white'), ink = cv('ink');
     const lw = Math.max(3, Math.round(H*0.006));
-    const bT = {x:W*0.04, y:H*0.04, w:W*0.62, h:H*0.36};
-    const bBadge = {x:W*0.70, y:H*0.06, w:W*0.26, h:H*0.30};
-    const bBand = {x:W*0.02, y:H*0.43, w:W*0.96, h:H*0.09};
-    const bTag = {x:W*0.04, y:H*0.56, w:W*0.50, h:H*0.12};
-    const bPara = {x:W*0.04, y:H*0.69, w:W*0.50, h:H*0.27};
-    const bPh = {x:W*0.57, y:H*0.56, w:W*0.39, h:H*0.12};
-    const bSlo = {x:W*0.57, y:H*0.70, w:W*0.39, h:H*0.26};
+    const bT = {x:W*0.015, y:H*0.015, w:W*0.665, h:H*0.395};
+    const bBadge = {x:W*0.69, y:H*0.025, w:W*0.295, h:H*0.375};
+    const bBand = {x:W*0.02, y:H*0.415, w:W*0.96, h:H*0.105};
+    const bTag = {x:W*0.015, y:H*0.525, w:W*0.535, h:H*0.14};
+    const bPara = {x:W*0.015, y:H*0.67, w:W*0.535, h:H*0.315};
+    const bPh = {x:W*0.56, y:H*0.525, w:W*0.425, h:H*0.14};
+    const bSlo = {x:W*0.56, y:H*0.67, w:W*0.425, h:H*0.315};
     L.push(rectL('배경', {x:0, y:0, w:W, h:H}, bgc, ink, 12, 0));
     L.push(ovalL('뱃지 타원', bBadge, red, ink, lw));
     L.push(rectL('남색 띠', bBand, navy, null, 0, 0));
     TT('제목', slashify(fv('title')), bT, navy, {maxScale:1.6, maxFont:bT.h*0.9});
-    TT('뱃지', fv('badge'), inset(bBadge, 0.1, 0.16), wh, {maxScale:1.2});
+    TT('뱃지', fv('badge'), inset(bBadge, 0.025, 0.035), wh, {maxScale:1.2});
     TT('띠 문구', fv('band'), bBand, wh, {maxFont:bBand.h*0.6, maxScale:1.2, weight:700, ps:psB});
     TT('빨강 한 줄', fv('tag'), bTag, red, {maxScale:1.3, italic:true});
     TT('빨강 본문', fv('para'), bPara, red, {maxFont:bPara.h*0.2, lead:1.3, fill:false, center:false, weight:700, ps:psB});
@@ -1281,26 +1283,26 @@ function build(){
     L.push(rectL('배경', {x:0, y:0, w:W, h:H}, bgc, null, 0, 0));
     const bBadge = {x:W*0.025, y:H*0.04, w:W*0.085, h:H*0.24};
     L.push(ovalL('동그라미', bBadge, ink, null, 0));
-    const bTag = {x:W*0.315, y:H*0.06, w:W*0.085, h:H*0.19};
+    const bTag = {x:W*0.315, y:H*0.025, w:W*0.085, h:H*0.255};
     L.push(ovalL('작은 타원', bTag, ink, null, 0));
-    const bPill = {x:W*0.025, y:H*0.33, w:W*0.74, h:H*0.085};
+    const bPill = {x:W*0.025, y:H*0.30, w:W*0.74, h:H*0.13};
     L.push(rectL('가운데 줄 테두리', bPill, null, ink, lw, bPill.h/2));
-    const bBox = {x:W*0.025, y:H*0.47, w:W*0.42, h:H*0.48};
+    const bBox = {x:W*0.025, y:H*0.445, w:W*0.42, h:H*0.535};
     L.push(rectL('검정 박스', bBox, ink, null, 0, Math.round(H*0.025)));
-    const bIn = {x:W*0.305, y:H*0.505, w:W*0.125, h:H*0.41};
+    const bIn = {x:W*0.305, y:H*0.475, w:W*0.125, h:H*0.47};
     L.push(rectL('작은 칸 테두리', bIn, null, acc, lw, Math.round(H*0.015)));
-    const scx = W*0.615, scy = H*0.71, sR = H*0.25;
+    const scx = W*0.615, scy = H*0.71, sR = H*0.28;
     L.push(burstL('별 폭발', scx, scy, sR, ink, ink, 1, 8, 0.55));
-    TT('동그라미 글자', stackChars(fv('badge')), inset(bBadge, 0.12, 0.1), acc, {lead:1.0, fill:false, maxFont:bBadge.h*0.42});
-    TT('앞 문구', fv('pre'), {x:W*0.115, y:H*0.06, w:W*0.195, h:H*0.19}, ink, {maxScale:1.3, ps:psB});
-    TT('작은 타원 글자', fv('tag'), inset(bTag, 0.12, 0.14), acc, {lead:1.0, maxScale:1.2});
+    TT('동그라미 글자', stackChars(fv('badge')), inset(bBadge, 0.025, 0.035), acc, {lead:1.0, fill:false, maxFont:bBadge.h*0.42});
+    TT('앞 문구', fv('pre'), {x:W*0.115, y:H*0.025, w:W*0.195, h:H*0.255}, ink, {maxScale:1.3, ps:psB});
+    TT('작은 타원 글자', fv('tag'), inset(bTag, 0.025, 0.035), acc, {lead:1.0, maxScale:1.2});
     TT('큰 이름', fv('name'), {x:W*0.405, y:H*0.02, w:W*0.33, h:H*0.27}, ink, {maxScale:1.6});
     TT('오른쪽 세로 글씨', stackChars(fv('vert')), {x:W*0.79, y:H*0.03, w:W*0.18, h:H*0.94}, ink, {lead:1.0, fill:false, maxFont:H*0.23});
-    TT('가운데 한 줄', fv('pill'), inset(bPill, 0.03, 0.1), ink, {maxScale:1.2, ps:psB});
-    TT('검정 박스 글자', fv('box1'), {x:W*0.04, y:H*0.5, w:W*0.255, h:H*0.42}, acc, {lead:1.12, maxScale:1.3});
-    TT('작은 칸 글자', fv('box2'), inset(bIn, 0.1, 0.06), acc, {lead:1.12, maxScale:1.3});
+    TT('가운데 한 줄', fv('pill'), inset(bPill, 0.025, 0.035), ink, {maxScale:1.2, ps:psB});
+    TT('검정 박스 글자', fv('box1'), {x:W*0.04, y:H*0.46, w:W*0.255, h:H*0.50}, acc, {lead:1.12, maxScale:1.3});
+    TT('작은 칸 글자', fv('box2'), inset(bIn, 0.025, 0.035), acc, {lead:1.12, maxScale:1.3});
     TT('별 폭발 글자', fv('star'), {x:scx - sR*0.5, y:scy - sR*0.5, w:sR, h:sR}, acc, {lead:1.05, maxScale:1.2});
-    TT('별 1', '★', {x:W*0.455, y:H*0.47, w:W*0.05, h:H*0.08}, ink, {fill:false});
+    TT('별 1', '★', {x:W*0.455, y:H*0.445, w:W*0.05, h:H*0.08}, ink, {fill:false});
     TT('별 2', '★', {x:W*0.72, y:H*0.86, w:W*0.05, h:H*0.08}, ink, {fill:false});
   }
   if(tpl === 'greenintro'){
@@ -1369,11 +1371,11 @@ function build(){
     L.push(rectL('바깥 테두리', {x:lw/2, y:lw/2, w:W - lw, h:H - lw}, null, ink, lw, 0));
     L.push(dotsL('위 점선', H*0.035, W*0.03, W*0.97, H*0.008, ink));
     L.push(dotsL('아래 점선', H*0.51, W*0.03, W*0.97, H*0.008, paper));
-    const bC = {x:W*0.035, y:H*0.08, w:W*0.11, h:H*0.17};
+    const bC = {x:W*0.035, y:H*0.065, w:W*0.11, h:H*0.205};
     L.push(ovalL('동그라미', bC, ink, null, 0));
-    const bBar = {x:W*0.035, y:H*0.30, w:W*0.93, h:H*0.10};
+    const bBar = {x:W*0.035, y:H*0.285, w:W*0.93, h:H*0.16};
     L.push(rectL('검정 알약', bBar, ink, null, 0, bBar.h/2));
-    const bC2 = {x:W*0.035, y:H*0.555, w:W*0.07, h:H*0.105};
+    const bC2 = {x:W*0.035, y:H*0.555, w:W*0.07, h:H*0.165};
     L.push(ovalL('아래 동그라미', bC2, paper, null, 0));
     L.push(burstL('큰 별', W*0.075, H*0.83, H*0.11, ink, paper, lw*1.2, 5, 0.45));
     L.push(burstL('작은 별', W*0.14, H*0.715, H*0.04, ink, paper, lw, 5, 0.45));
@@ -1383,15 +1385,15 @@ function build(){
     L.push(rectL('이름 테두리', bName, null, ink, lw, Math.round(H*0.01)));
     const qs = Math.min(W*0.12, H*0.19);
     L.push(qrL('QR 느낌 격자', {x:W*0.84, y:H*0.735, w:qs, h:qs}, ink));
-    TT('동그라미 글자', fv('cbadge'), inset(bC, 0.16, 0.14), paper, {maxScale:1.2});
-    TT('제목', fv('title'), {x:W*0.15, y:H*0.07, w:W*0.30, h:H*0.19}, ink, {maxScale:1.5});
-    TT('오른쪽 위 질문', fv('q'), {x:W*0.46, y:H*0.12, w:W*0.50, h:H*0.11}, ink, {italic:true, maxScale:1.3, ps:psB});
-    TT('검정 알약 글자', fv('bar'), inset(bBar, 0.03, 0.12), paper, {maxScale:1.3, ps:psB});
-    TT('아래 동그라미 글자', fv('c2'), inset(bC2, 0.14, 0.12), ink, {maxScale:1.2});
-    TT('동그라미 옆 줄', fv('eq'), {x:W*0.115, y:H*0.56, w:W*0.52, h:H*0.10}, paper, {fill:false, center:false, maxScale:1.2});
-    TT('아래 본문', fv('para'), {x:W*0.17, y:H*0.68, w:W*0.47, h:H*0.29}, paper, {lead:1.25, maxScale:1.2, ps:psB});
+    TT('동그라미 글자', fv('cbadge'), inset(bC, 0.025, 0.035), paper, {maxScale:1.2});
+    TT('제목', fv('title'), {x:W*0.15, y:H*0.055, w:W*0.30, h:H*0.22}, ink, {maxScale:1.5});
+    TT('오른쪽 위 질문', fv('q'), {x:W*0.46, y:H*0.065, w:W*0.50, h:H*0.205}, ink, {italic:true, maxScale:1.3, ps:psB});
+    TT('검정 알약 글자', fv('bar'), inset(bBar, 0.025, 0.035), paper, {maxScale:1.3, ps:psB});
+    TT('아래 동그라미 글자', fv('c2'), inset(bC2, 0.025, 0.035), ink, {maxScale:1.2});
+    TT('동그라미 옆 줄', fv('eq'), {x:W*0.115, y:H*0.56, w:W*0.52, h:H*0.16}, paper, {fill:false, center:false, maxScale:1.2});
+    TT('아래 본문', fv('para'), {x:W*0.17, y:H*0.675, w:W*0.47, h:H*0.31}, paper, {lead:1.25, maxScale:1.2, ps:psB});
     TT('오른쪽 상자 글자', fv('rbox'), {x:W*0.67, y:H*0.565, w:W*0.29, h:H*0.16}, ink, {lead:1.2, maxScale:1.2, ps:psB});
-    TT('오른쪽 이름', fv('rname'), inset(bName, 0.06, 0.1), ink, {maxScale:1.4});
+    TT('오른쪽 이름', fv('rname'), inset(bName, 0.025, 0.035), ink, {maxScale:1.4});
     TT('이름 아래', fv('rsmall'), {x:W*0.675, y:H*0.83, w:W*0.15, h:H*0.12}, ink, {lead:1.1, maxScale:1.3});
   }
   if(tpl === 'greenbanner'){
