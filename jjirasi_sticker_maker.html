@@ -649,13 +649,16 @@ function monoOvalLayer(cx, cy, rx, ry, ink){
 }
 function outlineLayer(name, geo, color, lw){
   const c = mkCanvas(), x = c.getContext('2d');
+  const draw = x => {
   x.font = geo.font; x.textBaseline = 'alphabetic';
   x.lineJoin = 'round'; x.strokeStyle = color; x.lineWidth = geo.fs*(lw || 0.14);
   if(geo.transform) x.transform(...geo.transform);
   geo.lines.forEach((l,i) => {
     x.save(); x.translate(geo.x0, geo.y0); x.rotate(geo.th || 0); x.translate(0, i*geo.fs*geo.lead); x.scale(geo.sc,1); x.strokeText(l,(geo.offs ? geo.offs[i] : 0),0); x.restore();
   });
-  return {name, canvas:c};
+  };
+  draw(x);
+  return {name, canvas:c, _draw:draw};
 }
 
 /* ---------- 패턴 테두리·검정 헤더용 부품 ---------- */
@@ -908,12 +911,15 @@ function textLayer(name, raw, box, o){
   const geo = {lines:lines, offs:offs, fs:fs, sc:sc, x0:x0, y0:y0, th:th, lead:o.lead, font:fw+' '+fs+'px '+fam, transform:o.transform};
 
   const c = mkCanvas(), x = c.getContext('2d');
+  const draw = x => {
   x.font = fw+' '+fs+'px '+fam;
   x.fillStyle = o.fg; x.textBaseline = 'alphabetic';
   if(o.transform) x.transform(...o.transform);
   lines.forEach((l,i) => {
     x.save(); x.translate(x0, y0); x.rotate(th); x.translate(0, i*fs*o.lead); x.scale(sc,1); x.fillText(l,offs[i],0); x.restore();
   });
+  };
+  draw(x);
   const half = midAlign ? wF*sc/2 : 0;
   let transform = [Math.cos(th), Math.sin(th), -Math.sin(th), Math.cos(th), x0 + Math.cos(th)*half, y0 + Math.sin(th)*half];
   // 미리보기·외곽선·PSD 문자 레이어에 같은 변환을 적용해요.
@@ -922,7 +928,7 @@ function textLayer(name, raw, box, o){
     transform = [a*u+c*v, b*u+d*v, a*w+c*z, b*w+d*z, a*tx+c*ty+e, b*tx+d*ty+f];
   }
   return {
-    name, canvas:c, _geo:geo,
+    name, canvas:c, _geo:geo, _draw:draw,
     text:{
       text: lines.join('\r'),
       transform,
@@ -937,10 +943,13 @@ function textLayer(name, raw, box, o){
 function decoLayer(name, ch, x0, base, fs, color, ps){
   const c = mkCanvas(), x = c.getContext('2d');
   const F = PSMAP[ps];
+  const draw = x => {
   x.font = (F ? F.weight : 800)+' '+fs+'px '+(F ? F.css + ',' : '')+FAMILY; x.fillStyle = color; x.textBaseline = 'alphabetic';
   x.fillText(ch, x0, base);
+  };
+  draw(x);
   return {
-    name, canvas:c,
+    name, canvas:c, _draw:draw,
     text:{
       text: ch, transform:[1,0,0,1,x0,base],
       style:{font:{name:ps}, fontSize:fs, fillColor:hexToRgb(color)},
@@ -1738,7 +1747,10 @@ function applyRegionEdits(list){
     const edit = REGION_EDITS[tpl + ':' + editName + ':' + count];
     if(edit){
       const c=mkCanvas(), x=c.getContext('2d');
-      x.setTransform(edit.sx,0,0,edit.sy,edit.dx*W,edit.dy*H); x.drawImage(l.canvas,0,0); l.canvas=c;
+      x.setTransform(edit.sx,0,0,edit.sy,edit.dx*W,edit.dy*H);
+      // 글자와 외곽선은 원래 윤곽을 다시 그려 확대 시 픽셀 보간을 피합니다.
+      if(l._draw) l._draw(x); else x.drawImage(l.canvas,0,0);
+      l.canvas=c;
       if(l.text){
         const [a,b,c,d,e,f]=l.text.transform;
         l.text.transform=[edit.sx*a,edit.sy*b,edit.sx*c,edit.sy*d,edit.sx*e+edit.dx*W,edit.sy*f+edit.dy*H];
