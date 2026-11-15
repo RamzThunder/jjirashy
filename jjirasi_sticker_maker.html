@@ -89,6 +89,14 @@
     <textarea id="title" style="min-height:52px">야구 끊습니다</textarea>
     <label>부제</label>
     <input type="text" id="sub" value="내일 경기 전까지만 연락 받습니다">
+<div id="basicBodyFields">
+    <label>본문 왼쪽</label>
+    <textarea id="bodyLeft">※ 무사 만루에 무득점 실존
+※ 안 본다 해놓고 문자중계 켬</textarea>
+    <label>본문 오른쪽</label>
+    <textarea id="bodyRight">※ 이겨도 화남 / 지면 더 화남
+※ 내일은 다르겠지 또 속는 중</textarea>
+</div>
 <div id="bodyWrap">
     <label>본문</label>
     <textarea id="body">※ 무사 만루에 무득점 실존
@@ -998,11 +1006,20 @@ function build(){
     L.push(bgLayer());
     L.push(boxLayer('제목박스', bT, pal.titleBg));
     L.push(boxLayer('부제박스', bS, pal.subBg));
-    L.push(boxLayer('본문박스', bB, pal.bodyBg));
+    const columnW = (bB.w - g)/2;
+    const bLeft = {x:bB.x, y:bB.y, w:columnW, h:bB.h};
+    const bRight = {x:bB.x + columnW + g, y:bB.y, w:columnW, h:bB.h};
+    if(tpl === 'basic'){
+      L.push(boxLayer('본문 왼쪽 박스', bLeft, pal.bodyBg));
+      L.push(boxLayer('본문 오른쪽 박스', bRight, pal.bodyBg));
+    }else L.push(boxLayer('본문박스', bB, pal.bodyBg));
     L.push(boxLayer('전화박스', bP, pal.phoneBg));
     titleWithShadow(bT, pal.titleFg);
     addT('부제', $('sub').value, bS, oSub(bS, pal.subFg));
-    addT('본문', $('body').value, bB, oBody(bB, pal.bodyFg));
+    if(tpl === 'basic'){
+      addT('본문 왼쪽', $('bodyLeft').value, bLeft, oBody(bLeft, pal.bodyFg));
+      addT('본문 오른쪽', $('bodyRight').value, bRight, oBody(bRight, pal.bodyFg));
+    }else addT('본문', $('body').value, bB, oBody(bB, pal.bodyFg));
     addT('전화번호', $('phone').value, bP, oPhone(bP, pal.phoneFg));
     if(deco){
       if(tpl === 'basic'){
@@ -1898,7 +1915,8 @@ function setTpl(k){
   $('tplHint').style.display = TPL[k].hint ? '' : 'none';
   $('curTpl').textContent = '선택한 틀: ' + TPL[k].n;
   // 그 틀에서 안 쓰는 칸은 숨기기
-  $('bodyWrap').style.display = (k === 'burst' || k === 'oval') ? 'none' : '';
+  $('bodyWrap').style.display = (k === 'basic' || k === 'burst' || k === 'oval') ? 'none' : '';
+  $('basicBodyFields').style.display = k === 'basic' ? '' : 'none';
   $('decoWrap').style.display = ['basic','strip','vertical','burst','oval'].indexOf(k) >= 0 ? '' : 'none';
   $('phoneWrap').style.display = ['pattern','mart','navy','yslash','pinkv','alien','redsign','greenintro','rockeff','greenbanner','bluestar'].indexOf(k) >= 0 ? 'none' : '';
   const std = ['basic','strip','vertical','burst','oval'].indexOf(k) >= 0;
@@ -2129,7 +2147,7 @@ function initUI(){
     if(n > 1 && i === cur) i = (i + 1 + Math.floor(Math.random()*(n - 1))) % n;
     $('palSel').value = i; setPal(i);
   });
-  ['title','sub','body','phone','deco','size','psTitle','psBody','monoTop','monoLeft','monoCenter','monoRight','monoBar','monoInk','monoPaper','p7Top','p7Slash','p7Big','p7Badge','p7Glyph','p8Head','p8Badge','p8Lines','p8Bullet'].forEach(id => $(id).addEventListener('input', render));
+  ['title','sub','body','bodyLeft','bodyRight','phone','deco','size','psTitle','psBody','monoTop','monoLeft','monoCenter','monoRight','monoBar','monoInk','monoPaper','p7Top','p7Slash','p7Big','p7Badge','p7Glyph','p8Head','p8Badge','p8Lines','p8Bullet'].forEach(id => $(id).addEventListener('input', render));
   $('fillAll').addEventListener('input', () => {
     FILL = +$('fillAll').value/100; $('fillAllV').textContent = $('fillAll').value + '%'; render();
   });
@@ -2220,7 +2238,7 @@ function rText(th, ref){
     used.add(out); return out;
   }).join('\n');
 }
-const R_DOM = ['title','sub','body','monoTop','monoLeft','monoCenter','monoRight','monoBar','p7Top','p7Big','p7Badge','p8Head','p8Badge','p8Lines','p8Bullet'];
+const R_DOM = ['title','sub','body','bodyLeft','bodyRight','monoTop','monoLeft','monoCenter','monoRight','monoBar','p7Top','p7Big','p7Badge','p8Head','p8Badge','p8Lines','p8Bullet'];
 function randomizeText(){
   const th = pick(R_THEMES);
   R_DOM.forEach(id => { const el = $(id); el.value = rText(th, el.defaultValue); });
