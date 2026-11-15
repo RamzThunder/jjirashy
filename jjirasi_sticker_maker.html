@@ -225,7 +225,7 @@
 
   <div class="stage">
     <div class="note" id="regionEditor">
-      <b>영역 편집</b> · Shift를 누른 채 클릭하면 여러 영역을 선택합니다. 선택한 영역은 함께 이동합니다. Shift+드래그: 가로·세로 이동 고정 · Ctrl/Cmd+손잡이 드래그: 비율 유지. 버튼은 클릭할 때마다 선택·해제됩니다.
+      <b>영역 편집</b> · Shift를 누른 채 클릭하면 여러 영역을 선택합니다. 선택한 영역은 함께 이동합니다. Shift+드래그: 가로·세로 이동 고정 · Ctrl/Cmd+손잡이 드래그: 비율 유지. 버튼은 클릭할 때마다 선택·해제됩니다. Ctrl/Cmd+Z: 실행 취소 · Ctrl/Cmd+Shift+Z: 다시 실행.
       <div id="regionSelect" role="group" aria-label="편집할 영역" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px"></div>
       <div class="row" style="margin-top:6px"><button type="button" class="small" id="regionReset">선택 영역 초기화</button><button type="button" class="small" id="regionsReset">이 틀 배치 초기화</button></div>
     </div>
@@ -1718,6 +1718,7 @@ function render(){
   scheduleThumbs();
   drawRegionEditor();
   saveLayouts();
+  rememberLayout();
 }
 
 /* ---------- 틀 썸네일 ---------- */
@@ -1771,6 +1772,48 @@ function saveLayouts(){
   if(data===layoutSaved)return;
   try{localStorage.setItem(LAYOUT_STORAGE,data);layoutSaved=data;}catch(e){msg('브라우저 저장 공간을 사용할 수 없어 배치를 저장하지 못했어요.');}
 }
+const layoutUndo = [], layoutRedo = [];
+let historyCurrent = null, historyRestoring = false, rangeEditing = false;
+function layoutSnapshot(){
+  return JSON.stringify({regions:REGION_EDITS,text:ADJ,fill:FILL});
+}
+function rememberLayout(){
+  if(historyRestoring || regionDrag || rangeEditing)return;
+  const next=layoutSnapshot();
+  if(historyCurrent===null){historyCurrent=next;return;}
+  if(next===historyCurrent)return;
+  layoutUndo.push(historyCurrent);if(layoutUndo.length>100)layoutUndo.shift();
+  layoutRedo.length=0;historyCurrent=next;
+}
+function restoreLayout(direction){
+  const from=direction==='undo'?layoutUndo:layoutRedo, to=direction==='undo'?layoutRedo:layoutUndo;
+  if(!from.length)return;
+  to.push(historyCurrent);const snapshot=from.pop(), state=JSON.parse(snapshot);
+  historyRestoring=true;
+  for(const [target,source] of [[REGION_EDITS,state.regions],[ADJ,state.text]]){
+    Object.keys(target).forEach(k=>delete target[k]);Object.assign(target,source);
+  }
+  FILL=state.fill;$('fillAll').value=Math.round(FILL*100);$('fillAllV').textContent=Math.round(FILL*100)+'%';
+  historyCurrent=snapshot;adjSig='';render();historyRestoring=false;
+  msg(direction==='undo'?'배치 실행 취소':'배치 다시 실행');
+}
+function initLayoutHistory(){
+  document.addEventListener('keydown',e=>{
+    if(!(e.ctrlKey||e.metaKey)||e.altKey)return;
+    const target=e.target;
+    if(target.isContentEditable||target.closest('textarea,input:not([type=range]):not([type=button])'))return;
+    const key=e.key.toLowerCase();
+    if(key!=='z'&&!(key==='y'&&e.ctrlKey))return;
+    e.preventDefault();
+    if(regionDrag)return;
+    rangeEditing=false;rememberLayout();restoreLayout(e.shiftKey||key==='y'?'redo':'undo');
+  });
+  document.addEventListener('pointerdown',e=>{if(e.target.matches('input[type=range]'))rangeEditing=true;});
+  const finishRange=()=>{if(rangeEditing){rangeEditing=false;rememberLayout();}};
+  document.addEventListener('pointerup',finishRange);document.addEventListener('pointercancel',finishRange);
+  document.addEventListener('change',e=>{if(e.target.matches('input[type=range]'))finishRange();});
+}
+
 function groupBox(){
   const boxes=layers.filter(l=>l.regionSelectable&&regionGroup.has(l.regionId)).map(regionBox).filter(Boolean);
   if(!boxes.length)return null;
@@ -1886,6 +1929,7 @@ function initRegionEditor(){
       drawRegionEditor();
     }
     regionDrag=null;
+    rememberLayout();
   };
   overlay.addEventListener('pointerup',end);overlay.addEventListener('pointercancel',end);
 }
@@ -2415,6 +2459,7 @@ function savePsd(){
 newGen();
 initUI();
 initRegionEditor();
+initLayoutHistory();
 setTpl('basic');
 ensureFonts().then(render);
 </script>
