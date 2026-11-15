@@ -217,8 +217,8 @@
 
   <div class="stage">
     <div class="note" id="regionEditor">
-      <b>영역 편집</b> · Shift를 누른 채 클릭하면 여러 영역을 선택합니다. 선택한 영역은 함께 이동합니다. 오른쪽 아래 손잡이를 끌면 크기가 바뀝니다.
-      <select id="regionSelect" multiple size="5" aria-label="편집할 영역 (여러 개 선택 가능)"><option value="">영역 선택</option></select>
+      <b>영역 편집</b> · Shift를 누른 채 클릭하면 여러 영역을 선택합니다. 선택한 영역은 함께 이동합니다. Shift+드래그: 가로·세로 이동 고정 · Ctrl/Cmd+손잡이 드래그: 비율 유지. 버튼은 클릭할 때마다 선택·해제됩니다.
+      <div id="regionSelect" role="group" aria-label="편집할 영역" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px"></div>
       <div class="row" style="margin-top:6px"><button type="button" class="small" id="regionReset">선택 영역 초기화</button><button type="button" class="small" id="regionsReset">이 틀 배치 초기화</button></div>
     </div>
     <div style="position:relative;max-width:100%;line-height:0"><canvas id="view"></canvas><canvas id="regionOverlay" style="position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:default" aria-label="미리보기 영역 이동 및 크기 조절"></canvas></div>
@@ -1789,11 +1789,15 @@ function drawRegionEditor(){
   const sel=$('regionSelect'), available=layers.filter(l=>l.regionSelectable);
   const signature=tpl+'|'+available.map(l=>l.regionId).join('|');
   if(sel.dataset.signature!==signature){
-    sel.dataset.signature=signature; sel.replaceChildren(new Option('영역 선택',''));
-    available.forEach(l=>sel.add(new Option(l.name+(l.text?' (글자)':' (상자·그림)'),l.regionId)));
+    sel.dataset.signature=signature; sel.replaceChildren();
+    available.forEach(l=>{
+      const button=document.createElement('button');button.type='button';button.className='small';button.dataset.id=l.regionId;
+      button.textContent=l.name+(l.text?' (글자)':' (상자·그림)');
+      sel.appendChild(button);
+    });
     regionSelected=''; regionGroup.clear();
   }
-  [...sel.options].forEach(o=>o.selected=regionGroup.has(o.value));
+  sel.querySelectorAll('button').forEach(b=>{const active=regionGroup.has(b.dataset.id);b.setAttribute('aria-pressed',String(active));b.style.background=active?'#ffe600':'#fff';});
   const box=groupBox();
   if(!box)return;
   const x=overlay.getContext('2d'), scale=W/overlay.getBoundingClientRect().width, handle=12*scale;
@@ -1803,7 +1807,11 @@ function drawRegionEditor(){
 function initRegionEditor(){
   const overlay=$('regionOverlay');
   const point=e=>{const r=overlay.getBoundingClientRect();return {x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};};
-  $('regionSelect').addEventListener('change',e=>{regionGroup=new Set([...e.target.selectedOptions].map(o=>o.value).filter(Boolean));regionSelected=[...regionGroup][0]||'';drawRegionEditor();});
+  $('regionSelect').addEventListener('click',e=>{
+    const button=e.target.closest('button[data-id]');if(!button)return;
+    const id=button.dataset.id;if(regionGroup.has(id))regionGroup.delete(id);else regionGroup.add(id);
+    regionSelected=[...regionGroup][0]||'';drawRegionEditor();
+  });
   $('regionReset').addEventListener('click',()=>{regionGroup.forEach(id=>delete REGION_EDITS[tpl+':'+id]);render();});
   $('regionsReset').addEventListener('click',()=>{Object.keys(REGION_EDITS).filter(k=>k.startsWith(tpl+':')).forEach(k=>delete REGION_EDITS[k]);render();});
   overlay.addEventListener('pointerdown',e=>{
@@ -1816,29 +1824,38 @@ function initRegionEditor(){
       const b=regionBox(l); if(!b||p.x<b.x||p.x>b.x+b.w||p.y<b.y||p.y>b.y+b.h)return false;
       return l.canvas.getContext('2d').getImageData(Math.min(W-1,Math.max(0,Math.floor(p.x))),Math.min(H-1,Math.max(0,Math.floor(p.y))),1,1).data[3]>16;
     });
-    if(e.shiftKey && hit){
-      if(regionGroup.has(hit.regionId))regionGroup.delete(hit.regionId);else regionGroup.add(hit.regionId);
-      regionSelected=[...regionGroup][0]||'';drawRegionEditor();return;
-    }
     if(!hit){regionGroup.clear();regionSelected='';drawRegionEditor();return;}
-    if(!regionGroup.has(hit.regionId))regionGroup=new Set([hit.regionId]);
+    const wasSelected=regionGroup.has(hit.regionId), toggle=e.shiftKey&&!resize;
+    if(!regionGroup.has(hit.regionId)){if(toggle)regionGroup.add(hit.regionId);else regionGroup=new Set([hit.regionId]);}
     regionSelected=hit.regionId;drawRegionEditor();
     const entries=[...regionGroup].map(id=>{const key=tpl+':'+id;return {key,edit:{sx:1,sy:1,dx:0,dy:0,...REGION_EDITS[key]}};});
-    regionDrag={entries,start:p,box:groupBox(),resize};
+    regionDrag={entries,start:p,box:groupBox(),resize,toggle,wasSelected,id:hit.regionId,moved:false};
     overlay.setPointerCapture(e.pointerId);e.preventDefault();
   });
   overlay.addEventListener('pointermove',e=>{
     if(!regionDrag)return;
     const p=point(e), d=regionDrag;
+    let dx=p.x-d.start.x, dy=p.y-d.start.y;
+    if(Math.hypot(dx,dy)>3*W/overlay.getBoundingClientRect().width)d.moved=true;
+    if(!d.moved)return;
+    if(e.shiftKey&&!d.resize){if(Math.abs(dx)>=Math.abs(dy))dy=0;else dx=0;}
     d.entries.forEach(({key,edit:a})=>{
     if(d.resize){
-      const sx=Math.max(0.1,(d.box.w+p.x-d.start.x)/d.box.w), sy=Math.max(0.1,(d.box.h+p.y-d.start.y)/d.box.h);
+      let sx=Math.max(0.1,(d.box.w+dx)/d.box.w), sy=Math.max(0.1,(d.box.h+dy)/d.box.h);
+      if(e.ctrlKey||e.metaKey){const scale=Math.abs(sx-1)>=Math.abs(sy-1)?sx:sy;sx=sy=scale;}
       REGION_EDITS[key]={sx:a.sx*sx,sy:a.sy*sy,dx:a.dx*sx+d.box.x/W*(1-sx),dy:a.dy*sy+d.box.y/H*(1-sy)};
-    }else REGION_EDITS[key]={...a,dx:a.dx+(p.x-d.start.x)/W,dy:a.dy+(p.y-d.start.y)/H};
+    }else REGION_EDITS[key]={...a,dx:a.dx+dx/W,dy:a.dy+dy/H};
     });
     render();
   });
-  const end=()=>{regionDrag=null;};
+  const end=e=>{
+    if(e.type==='pointerup'&&regionDrag&&regionDrag.toggle&&!regionDrag.moved){
+      // Shift 클릭은 선택을 토글하고, Shift 드래그는 선택을 유지합니다.
+      if(regionDrag.entries.some(entry=>entry.key===tpl+':'+regionDrag.id)&&regionDrag.wasSelected)regionGroup.delete(regionDrag.id);
+      drawRegionEditor();
+    }
+    regionDrag=null;
+  };
   overlay.addEventListener('pointerup',end);overlay.addEventListener('pointercancel',end);
 }
 
