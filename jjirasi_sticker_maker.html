@@ -646,6 +646,7 @@ function outlineLayer(name, geo, color, lw){
   const c = mkCanvas(), x = c.getContext('2d');
   x.font = geo.font; x.textBaseline = 'alphabetic';
   x.lineJoin = 'round'; x.strokeStyle = color; x.lineWidth = geo.fs*(lw || 0.14);
+  if(geo.transform) x.transform(...geo.transform);
   geo.lines.forEach((l,i) => {
     x.save(); x.translate(geo.x0, geo.y0); x.rotate(geo.th || 0); x.translate(0, i*geo.fs*geo.lead); x.scale(geo.sc,1); x.strokeText(l,(geo.offs ? geo.offs[i] : 0),0); x.restore();
   });
@@ -899,20 +900,27 @@ function textLayer(name, raw, box, o){
   m.font = fw+' '+fs+'px '+fam;
   const ws = lines.map(l => m.measureText(l).width), wF = Math.max.apply(null, ws);
   const offs = ws.map(w => midAlign ? (wF - w)/2 : 0);
-  const geo = {lines:lines, offs:offs, fs:fs, sc:sc, x0:x0, y0:y0, th:th, lead:o.lead, font:fw+' '+fs+'px '+fam};
+  const geo = {lines:lines, offs:offs, fs:fs, sc:sc, x0:x0, y0:y0, th:th, lead:o.lead, font:fw+' '+fs+'px '+fam, transform:o.transform};
 
   const c = mkCanvas(), x = c.getContext('2d');
   x.font = fw+' '+fs+'px '+fam;
   x.fillStyle = o.fg; x.textBaseline = 'alphabetic';
+  if(o.transform) x.transform(...o.transform);
   lines.forEach((l,i) => {
     x.save(); x.translate(x0, y0); x.rotate(th); x.translate(0, i*fs*o.lead); x.scale(sc,1); x.fillText(l,offs[i],0); x.restore();
   });
   const half = midAlign ? wF*sc/2 : 0;
+  let transform = [Math.cos(th), Math.sin(th), -Math.sin(th), Math.cos(th), x0 + Math.cos(th)*half, y0 + Math.sin(th)*half];
+  // 미리보기·외곽선·PSD 문자 레이어에 같은 변환을 적용해요.
+  if(o.transform){
+    const [a,b,c,d,e,f] = o.transform, [u,v,w,z,tx,ty] = transform;
+    transform = [a*u+c*v, b*u+d*v, a*w+c*z, b*w+d*z, a*tx+c*ty+e, b*tx+d*ty+f];
+  }
   return {
     name, canvas:c, _geo:geo,
     text:{
       text: lines.join('\r'),
-      transform:[Math.cos(th), Math.sin(th), -Math.sin(th), Math.cos(th), x0 + Math.cos(th)*half, y0 + Math.sin(th)*half],
+      transform,
       style:{
         font:{name:o.ps}, fontSize:fs, fillColor:hexToRgb(o.fg),
         horizontalScale:sc, fauxItalic:!!o.italic, autoLeading:false, leading:fs*o.lead
@@ -1100,6 +1108,10 @@ function build(){
     const paper = cv('paper'), frame = cv('frame'), txt = cv('txt'), panel = cv('panel');
     const pill = cv('pill'), pillTxt = cv('pillTxt'), bdg = cv('badge'), bdgTxt = cv('badgeTxt');
     const lw = Math.max(4, Math.round(H*0.007));
+    // 사용자가 조정한 1200×700 PSD 배치를 다른 출력 크기에도 비례 적용해요.
+    const titleTransform = [1, 0, 0, 1.1851917613636365, 0, -35.55681818181816*H/700];
+    const bigTransform = [1, 0, 0, 10/9, -10*W/1200, -55.44444444444446*H/700];
+    const footerTransform = [1.004746835443038, 0, 0, 1, -25.51582278481004*W/1200, 0];
     const dbl = (name, raw, box, fg, c1, w1, c2, w2, o) => {
       const gl = textLayer(name, raw, box, Object.assign({maxFont:box.h*0.8, lead:1.1, weight:800, ps:psT, fill:true, maxScale:2, center:true, fg:fg}, o||{}));
       if(gl){
@@ -1110,10 +1122,10 @@ function build(){
     };
     L.push(rectL('배경', {x:0, y:0, w:W, h:H}, paper, null, 0, 0));
     L.push(rectL('검정 둥근 틀', {x:6, y:6, w:W - 12, h:H - 12}, frame, null, 0, Math.round(H*0.05)));
+    const bPanel = {x:W*21/1200, y:H*204/700, w:W*1160/1200, h:H*213/700};
+    L.push(rectL('흰 패널', bPanel, panel, null, 0, 0));
     L.push(rectL('안쪽 선', {x:20, y:20, w:W - 40, h:H - 40}, null, txt, 3, Math.round(H*0.04)));
-    const bPanel = {x:W*0.10, y:H*0.32, w:W*0.885, h:H*0.27};
-    L.push(rectL('흰 패널', bPanel, panel, null, 0, Math.round(H*0.04)));
-    const pw = W*0.172, pg = W*0.0625, px0 = W*0.308, py = H*0.345, ph = H*0.09;
+    const pw = W*0.172, pg = W*0.0625, px0 = W*(0.308 - 10/1200), py = H*(0.345 - 17/700), ph = H*0.09;
     for(let i=0;i<3;i++){
       L.push(ovalL('알약 ' + (i+1), {x:px0 + i*(pw + pg), y:py, w:pw, h:ph}, pill, null, 0));
     }
@@ -1125,25 +1137,25 @@ function build(){
     L.push(rectL('강조 박스', segs[1], txt, null, 0, Math.round(bL3h*0.25)));
     const bG = {x:W*0.05, y:H*0.71, w:W*0.35, h:H*0.22};
     L.push(rectL('격자 박스', bG, frame, txt, lw*1.5, Math.round(H*0.025)));
-    const bcx = W*0.125, bcy = H*0.49, R = H*0.27;
+    const bcx = W*(0.125 - 10/1200), bcy = H*(0.49 - 17/700), R = H*0.27;
     L.push(burstL('폭발 뱃지', bcx, bcy, R, bdg, frame, lw*1.6, 9, 0.55));
 
     const bT = {x:W*0.05, y:H*0.07, w:W*0.90, h:H*0.22};
-    dbl('제목', fv('title'), inset(bT, 0.01, 0.05), txt, txt, 0.26, frame, 0.14);
+    dbl('제목', fv('title'), inset(bT, 0.01, 0.05), txt, txt, 0.26, frame, 0.14, {transform:titleTransform});
     TT('뱃지 글자', fv('badgeT'), {x:bcx - R*0.62, y:bcy - R*0.30, w:R*1.24, h:R*0.6}, bdgTxt, {rot:-20, maxScale:1.2});
     for(let i=0;i<3;i++){
       const bx = {x:px0 + i*(pw + pg), y:py, w:pw, h:ph};
       TT('알약 ' + (i+1), fv('p' + (i+1)), inset(bx, 0.1, 0.1), pillTxt, {maxFont:ph*0.6, maxScale:1.3});
       if(i < 2) TT('더하기 ' + (i+1), '+', {x:px0 + (i+1)*pw + i*pg, y:py, w:pg, h:ph}, pill, {fill:false, maxFont:ph*0.9});
     }
-    outlined('큰 글씨', fv('big'), {x:W*0.26, y:H*0.45, w:W*0.71, h:H*0.14}, panel, frame, 0.2, {maxScale:1.8});
-    TT('한 줄 앞', l1, segs[0], txt, {maxScale:1.3, ps:psB});
+    outlined('큰 글씨', fv('big'), {x:W*0.26, y:H*0.45, w:W*0.71, h:H*0.14}, panel, frame, 0.2, {maxScale:1.8, transform:bigTransform});
+    outlined('한 줄 앞', l1, segs[0], txt, frame, 10/54.74, {maxScale:1.3, ps:psB, dy:-7*H/700});
     TT('한 줄 강조', hl, inset(segs[1], 0.08, 0.12), frame, {maxScale:1.3});
     TT('한 줄 뒤', l2, segs[2], txt, {maxScale:1.3, ps:psB});
     const gridTxt = fv('grid').split('\n').map(l => l.trim() ? slashify(l) : '').join('\n');
     TT('격자 글자', gridTxt, inset(bG, 0.06, 0.1), txt, {maxFont:bG.h*0.3, lead:1.15, ps:psB});
-    TT('작은 줄', fv('small'), {x:W*0.43, y:H*0.725, w:W*0.55, h:H*0.06}, txt, {maxScale:1.2, ps:psB});
-    TT('전화번호', $('phone').value, {x:W*0.43, y:H*0.80, w:W*0.55, h:H*0.125}, txt, {maxFont:H*0.12, maxScale:1.8});
+    TT('작은 줄', fv('small'), {x:W*0.43, y:H*0.725, w:W*0.55, h:H*0.06}, txt, {maxScale:1.2, ps:psB, transform:footerTransform});
+    TT('전화번호', $('phone').value, {x:W*0.43, y:H*0.80, w:W*0.55, h:H*0.125}, txt, {maxFont:H*0.12, maxScale:1.8, transform:footerTransform});
   }
   if(tpl === 'mart'){
     const paper = cv('paper'), green = cv('green'), ink = cv('ink'), num = cv('num');
