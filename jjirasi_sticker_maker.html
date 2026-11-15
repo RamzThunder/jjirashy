@@ -313,7 +313,7 @@ const NT = {
   },
   alien:{
     colors:[['bg','바탕','#f2d36b'],['ink','검정 글자','#111111'],['red','강조 글자','#e8112d']],
-    fields:[['l1','첫째 줄','text',"야구 안 본다"],['l2','둘째 줄','text',"분명 말했는데"],['l3','셋째 줄','text',"내일 선발을"],['l4','넷째 줄','text',"왜 벌써"],['l5','마지막 큰 줄','text',"찾고있냐"]]
+    fields:[['trait','[ ] 사람이 · 빈칸에 들어갈 문구','text','야구 안 보는']]
   },
   redsign:{
     colors:[['bg','바탕','#d9412b'],['ink','검정','#111111'],['acc','검정 칸 안 글자','#d9412b']],
@@ -1314,13 +1314,11 @@ function build(){
   if(tpl === 'alien'){
     const bgc = cv('bg'), ink = cv('ink'), red = cv('red');
     L.push(rectL('배경', {x:0, y:0, w:W, h:H}, bgc, null, 0, 0));
-    const ix = W*0.06, iw = W*0.88;
-    TT('첫째 줄', fv('l1'), {x:ix, y:H*0.04, w:iw, h:H*0.15}, ink, {maxScale:1.6});
-    TT('둘째 줄', fv('l2'), {x:ix, y:H*0.19, w:iw, h:H*0.15}, red, {maxScale:1.6});
-    TT('셋째 줄', fv('l3'), {x:ix, y:H*0.34, w:iw, h:H*0.15}, red, {maxScale:1.6});
-    TT('넷째 줄', fv('l4'), {x:W*0.42, y:H*0.50, w:W*0.52, h:H*0.15}, ink, {maxScale:1.6});
-    TT('마지막 큰 줄', fv('l5'), {x:W*0.40, y:H*0.66, w:W*0.56, h:H*0.29}, ink, {maxScale:1.6});
-    L.push(alienLayer({x:W*0.02, y:H*0.52, w:W*0.40, h:H*0.44}));
+    TT('첫째 줄', '외계인 침공시', {x:W*0.04, y:H*0.04, w:W*0.92, h:H*0.20}, ink, {maxScale:1.6});
+    TT('둘째 줄', (fv('trait').trim() || '[   ]') + ' 사람이', {x:W*0.04, y:H*0.25, w:W*0.92, h:H*0.22}, red, {maxScale:1.6});
+    TT('넷째 줄', '먼저 잡아', {x:W*0.42, y:H*0.49, w:W*0.54, h:H*0.20}, ink, {maxScale:1.6});
+    TT('마지막 큰 줄', '먹힌다', {x:W*0.40, y:H*0.70, w:W*0.56, h:H*0.26}, ink, {maxScale:1.6});
+    L.push(alienLayer({x:W*0.02, y:H*0.49, w:W*0.39, h:H*0.47}));
   }
   if(tpl === 'redsign'){
     const bgc = cv('bg'), ink = cv('ink'), acc = cv('acc');
@@ -2262,7 +2260,7 @@ function randomizeText(){
   $('deco').value = pick(R_DECO);
   const gl = $('p7Glyph'); gl.selectedIndex = Math.floor(Math.random()*gl.options.length);
   if(NT[tpl]){
-    NT[tpl].fields.forEach(f => { FV[tpl + ':' + f[0]] = rText(th, f[3]); });
+    NT[tpl].fields.forEach(f => { FV[tpl + ':' + f[0]] = tpl === 'alien' ? pick(['야구 안 보는','만루에 병살 치는','초구에 팝플 치는','볼넷 주는','내일 또 보는','잔루만 쌓는','귀여운']) : rText(th, f[3]); });
     buildDyn(tpl);
   }
   render();
