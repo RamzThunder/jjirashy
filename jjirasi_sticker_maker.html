@@ -271,7 +271,7 @@ const TPL = {
   navy:    {n:'남색 추천', size:'1200x800', fontT:'blackhan', fontB:'pretendard', hint:''},
   yslash:  {n:'노랑 슬래시', size:'1200x800', fontT:'blackhan', fontB:'pretendard', hint:''},
   pinkv:   {n:'핑크 폭발 세로', size:'600x800', fontT:'blackhan', fontB:'pretendard', hint:''},
-  alien:   {n:'외계인 노랑', size:'900x1000', fontT:'blackhan', fontB:'pretendard', hint:'외계인 자리에는 이모지를 넣어요. 비우면 그림 없이 나와요.'},
+  alien:   {n:'외계인 노랑', size:'900x1000', fontT:'blackhan', fontB:'pretendard', hint:'고정 외계인 그림이에요. 영역 편집에서 위치와 크기를 바꿀 수 있어요.'},
   redsign: {n:'빨강 간판', size:'1200x840', fontT:'blackhan', fontB:'pretendard', hint:''},
   greenintro:{n:'초록 소개', size:'1200x800', fontT:'blackhan', fontB:'pretendard', hint:''},
   bluev:   {n:'파랑 세로 안내', size:'600x900', fontT:'blackhan', fontB:'pretendard', hint:''},
@@ -313,7 +313,7 @@ const NT = {
   },
   alien:{
     colors:[['bg','바탕','#f2d36b'],['ink','검정 글자','#111111'],['red','강조 글자','#e8112d']],
-    fields:[['l1','첫째 줄','text',"야구 안 본다"],['l2','둘째 줄','text',"분명 말했는데"],['l3','셋째 줄','text',"내일 선발을"],['l4','넷째 줄','text',"왜 벌써"],['l5','마지막 큰 줄','text',"찾고있냐"],['icon','그림 (이모지)','text',"🫠"]]
+    fields:[['l1','첫째 줄','text',"야구 안 본다"],['l2','둘째 줄','text',"분명 말했는데"],['l3','셋째 줄','text',"내일 선발을"],['l4','넷째 줄','text',"왜 벌써"],['l5','마지막 큰 줄','text',"찾고있냐"]]
   },
   redsign:{
     colors:[['bg','바탕','#d9412b'],['ink','검정','#111111'],['acc','검정 칸 안 글자','#d9412b']],
@@ -747,6 +747,22 @@ function ovalL(name, box, fill, stroke, lw){
   if(fill){ x.fillStyle = fill; x.fill(); }
   if(stroke && lw){ x.strokeStyle = stroke; x.lineWidth = lw; x.stroke(); }
   return {name, canvas:c};
+}
+// assets/alien.svg와 같은 윤곽을 캔버스에서 직접 그려 확대 시 다시 렌더링해요.
+function alienLayer(box){
+  const canvas=mkCanvas();
+  const draw=x=>{
+    x.save();
+    const scale=Math.min(box.w/260,box.h/350);
+    x.translate(box.x+(box.w-260*scale)/2,box.y+(box.h-350*scale)/2);
+    x.scale(scale,scale);x.translate(-15,-5);
+    x.fillStyle='#aac6b8';x.strokeStyle='#30372a';x.lineWidth=5;x.lineJoin='round';
+    const body=new Path2D('M 112 15 C 76 4 43 18 30 51 C 17 82 23 112 37 140 C 51 169 73 184 98 198 C 113 208 116 221 108 231 C 100 240 82 229 77 222 L 80 211 Q 81 201 73 204 L 63 211 L 58 199 Q 52 190 47 201 L 45 211 L 37 208 Q 27 206 32 217 L 38 226 L 34 232 Q 29 241 39 242 L 48 241 L 49 249 Q 52 255 58 247 L 64 239 C 75 249 96 250 109 254 C 104 268 109 286 117 302 C 106 308 98 297 91 301 C 77 306 89 324 104 333 L 125 345 Q 136 351 144 337 L 154 322 C 173 330 195 329 210 322 C 222 337 235 343 249 337 C 263 331 265 317 259 310 Q 256 305 250 311 Q 239 316 235 302 C 229 287 232 272 226 259 C 220 249 225 239 236 239 C 250 240 260 234 262 220 L 265 195 Q 265 178 254 183 C 244 187 240 207 226 216 C 212 224 194 217 187 209 C 181 200 192 185 198 171 C 211 144 210 117 200 90 C 187 55 153 26 112 15 Z');x.fill(body);x.stroke(body);
+    x.fillStyle='#000';x.fill(new Path2D('M 58 111 C 43 112 51 139 66 153 C 81 167 100 172 111 166 C 121 158 103 137 88 125 C 76 115 65 111 58 111 Z'));x.fill(new Path2D('M 176 103 C 162 102 147 122 142 140 C 137 155 140 171 151 170 C 166 168 181 148 186 130 C 190 116 186 104 176 103 Z'));
+    for(const [cx,cy] of [[130,182],[141,180]]){x.beginPath();x.ellipse(cx,cy,2.5,3.5,0,0,Math.PI*2);x.fill();}
+    x.restore();
+  };
+  draw(canvas.getContext('2d'));return {name:'외계인',canvas,_draw:draw};
 }
 function burstL(name, cx, cy, R, fill, stroke, lw, n, ratio){
   const c = mkCanvas(), x = c.getContext('2d');
@@ -1304,7 +1320,7 @@ function build(){
     TT('셋째 줄', fv('l3'), {x:ix, y:H*0.34, w:iw, h:H*0.15}, red, {maxScale:1.6});
     TT('넷째 줄', fv('l4'), {x:W*0.42, y:H*0.50, w:W*0.52, h:H*0.15}, ink, {maxScale:1.6});
     TT('마지막 큰 줄', fv('l5'), {x:W*0.40, y:H*0.66, w:W*0.56, h:H*0.29}, ink, {maxScale:1.6});
-    TT('그림', fv('icon'), {x:W*0.02, y:H*0.52, w:W*0.40, h:H*0.44}, ink, {fill:false, maxFont:H*0.34});
+    L.push(alienLayer({x:W*0.02, y:H*0.52, w:W*0.40, h:H*0.44}));
   }
   if(tpl === 'redsign'){
     const bgc = cv('bg'), ink = cv('ink'), acc = cv('acc');
